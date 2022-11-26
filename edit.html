@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <style>
+        #editor{background-color: bisque;height: 400px;margin: 50px;}
+    </style>
+
+</head>
+<body>
+<div id="editor">sdfsdafsa<b>fdfsad</b>fasdfsda</div>
+
+<script>
+
+    function init(target){
+        document.getElementById( target ).setAttribute( 'contenteditable', 'true' )
+    }
+
+    function getRangeNodes(){
+        return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
+    }
+
+
+    // 블럭(block) 선택한 텍스트 가져오기
+
+    function getSelectionText() {
+        var text = "";
+        if (window.getSelection) {
+            text = window.getSelection().toString();
+        } else if (document.selection && document.selection.type != "Control") {
+            text = document.selection.createRange().text;
+        }
+        return text;
+    }
+
+
+    // 현재 커서 위치에 텍스트 대체하기
+
+    function setTextCurrentCursor(intoElement, text) {
+        var selRange = document.selection.createRange();
+        selRange.text = text;
+    }
+
+    init('editor');
+</script>
+
+</body>
+</html>
