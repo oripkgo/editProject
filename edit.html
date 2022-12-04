@@ -19,9 +19,19 @@
     }
 
     function getRangeNodes(){
+        if( window.getSelection().type == 'None'){
+            return;
+        }
         return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
     }
 
+    function isSame(original, target){
+        return original === target;
+    }
+
+    function copyObj(target, deep){
+        return target.cloneNode(deep || true);
+    }
 
     // 블럭(block) 선택한 텍스트 가져오기
 
