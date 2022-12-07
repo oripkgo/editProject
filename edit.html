@@ -15,6 +15,7 @@
 <script>
     const startObj = {};
     const endObj = {};
+    let scopeObjects = [];
     let scopeParants = [];
     let editorTarget;
 
@@ -38,7 +39,7 @@
         }
     }
 
-    function pushParents(target, callCnt) {
+    function setParents(target, callCnt) {
         callCnt = (callCnt || 0);
         if( callCnt == 0 ){
             scopeParants = [];
@@ -46,12 +47,23 @@
 
         if (!isSame(target.parentNode, editorTarget)) {
             scopeParants.push(target.parentNode)
-            pushParents(target.parentNode, (++callCnt));
+            setParents(target.parentNode, (++callCnt));
         }
     }
 
     function getParents(){
         return scopeParants;
+    }
+
+    function setTargetObj(nodes){
+        for(let i=0;i<nodes.length;i++){
+            const node = nodes[i];
+            scopeObjects.push(node);
+        }
+    }
+
+    function getTargetObj(){
+        return scopeObjects;
     }
 
     function getRangeNodes(){
@@ -64,7 +76,11 @@
         endObj.container = window.getSelection().getRangeAt(0).endContainer;
         endObj.offset = window.getSelection().getRangeAt(0).endOffset;
 
-        return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
+        if( window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes.length > 0 ){
+            return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
+        }
+
+        return window.getSelection().getRangeAt(0).commonAncestorContainer;
     }
 
     function isSame(original, target){
