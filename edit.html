@@ -13,9 +13,10 @@
 <div id="editor"><b><u>sdfsfsafd</u>fsad</b>fasd<u>fsda</u></div>
 
 <script>
-    const startObj = {}, endObj = {};
-    let editorTarget;
+    const startObj = {};
+    const endObj = {};
     let scopeParants = [];
+    let editorTarget;
 
     function init(target){
         editorTarget = document.getElementById( target );
@@ -47,6 +48,10 @@
             scopeParants.push(target.parentNode)
             pushParents(target.parentNode, (++callCnt));
         }
+    }
+
+    function getParents(){
+        return scopeParants;
     }
 
     function getRangeNodes(){
