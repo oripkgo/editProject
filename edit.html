@@ -10,18 +10,55 @@
 
 </head>
 <body>
-<div id="editor">sdfsdafsa<b>fdfsad</b>fasdfsda</div>
+<div id="editor"><b><u>sdfsfsafd</u>fsad</b>fasd<u>fsda</u></div>
 
 <script>
+    const startObj = {}, endObj = {};
+    let editorTarget;
+    let scopeParants = [];
 
     function init(target){
+        editorTarget = document.getElementById( target );
         document.getElementById( target ).setAttribute( 'contenteditable', 'true' )
+    }
+
+    function findReturnObj(target, findObj){
+        if( isSame(target, findObj) ){
+            return target;
+        }else{
+            for(let i=0;target && i<target.childNodes.length;i++){
+                const child = target.childNodes[i];
+                let result = findReturnObj(child, findObj);
+
+                if( result ){
+                    return result;
+                }
+            }
+        }
+    }
+
+    function pushParents(target, callCnt) {
+        callCnt = (callCnt || 0);
+        if( callCnt == 0 ){
+            scopeParants = [];
+        }
+
+        if (!isSame(target.parentNode, editorTarget)) {
+            scopeParants.push(target.parentNode)
+            pushParents(target.parentNode, (++callCnt));
+        }
     }
 
     function getRangeNodes(){
         if( window.getSelection().type == 'None'){
             return;
         }
+
+        startObj.container = window.getSelection().getRangeAt(0).startContainer;
+        startObj.offset = window.getSelection().getRangeAt(0).startOffset;
+        endObj.container = window.getSelection().getRangeAt(0).endContainer;
+        endObj.offset = window.getSelection().getRangeAt(0).endOffset;
+
         return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
     }
 
