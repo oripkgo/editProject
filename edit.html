@@ -10,13 +10,17 @@
 
 </head>
 <body>
-<div id="editor"><b><u>sdfsfsafd</u>fsad</b>fasd<u>fsda</u></div>
+<div id="editor">
+    <p>asads<b>fdsgd</b>sfdsfdsfdasfdsfds</p>
+    <p><br></p>
+</div>
 
 <script>
     const startObj = {};
     const endObj = {};
     let scopeObjects = [];
     let scopeParants = [];
+    let scopeParantTagNames = [];
     let editorTarget;
 
     function init(target){
@@ -43,16 +47,23 @@
         callCnt = (callCnt || 0);
         if( callCnt == 0 ){
             scopeParants = [];
+            scopeParantTagNames = [];
         }
 
         if (!isSame(target.parentNode, editorTarget)) {
             scopeParants.push(target.parentNode)
+            scopeParantTagNames.push(target.parentNode.tagName)
+
             setParents(target.parentNode, (++callCnt));
         }
     }
 
     function getParents(){
         return scopeParants;
+    }
+
+    function getParentTagNames(){
+        return scopeParantTagNames;
     }
 
     function setTargetObj(nodes){
@@ -76,8 +87,10 @@
         endObj.container = window.getSelection().getRangeAt(0).endContainer;
         endObj.offset = window.getSelection().getRangeAt(0).endOffset;
 
-        if( window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes.length > 0 ){
-            return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
+        if( window.getSelection().type == 'Caret' ){
+            // setParents(window.getSelection().getRangeAt(0).commonAncestorContainer);
+            // return getParents()[getParents().length-1];
+            return window.getSelection().getRangeAt(0).commonAncestorContainer;
         }
 
         return window.getSelection().getRangeAt(0).commonAncestorContainer;
@@ -91,24 +104,55 @@
         return target.cloneNode(deep || true);
     }
 
-    // 블럭(block) 선택한 텍스트 가져오기
+    function cover(target){
+        const selectedEles = getRangeNodes();
+        target = target.toUpperCase();
 
-    function getSelectionText() {
-        var text = "";
-        if (window.getSelection) {
-            text = window.getSelection().toString();
-        } else if (document.selection && document.selection.type != "Control") {
-            text = document.selection.createRange().text;
+        if( !selectedEles ){
+            return;
         }
-        return text;
-    }
+
+        // 부모객체에 target과 동일한 태그가 있을 경우 로직 종료
+        setParents(selectedEles)
+        if( getParentTagNames().indexOf(target) > -1 ){
+            return;
+        }
+
+        // 노드 앞에 동일한 태그가 있을 경우 앞에 있는 노드에 append 처리
+        if( selectedEles.previousElementSibling && selectedEles.previousElementSibling.tagName == target ){
+            const previousElement = selectedEles.previousElementSibling;
+            selectedEles.previousElementSibling.appendChild(selectedEles);
+
+            if( previousElement.nextElementSibling && previousElement.nextElementSibling.tagName == target ){
+                for( let i=0;previousElement.nextElementSibling.childNodes && i<previousElement.nextElementSibling.childNodes.length;i++ ){
+                    previousElement.appendChild(previousElement.nextElementSibling.childNodes[i]);
+                }
+                previousElement.nextElementSibling.remove();
+            }
+
+            return;
+        }
+
+        // 노드 뒤에 동일한 태그가 있을 경우 뒤에 있는 노드에 prepend 처리
+        if( selectedEles.nextElementSibling && selectedEles.nextElementSibling.tagName == target ){
+            const nextElement = selectedEles.nextElementSibling;
+            selectedEles.nextElementSibling.firstChild.before(selectedEles);
+
+            if( nextElement.previousElementSibling && nextElement.previousElementSibling.tagName == target ){
+                for( let i=0;nextElement.previousElementSibling.childNodes && i<nextElement.previousElementSibling.childNodes.length;i++ ){
+                    nextElement.firstChild.before(nextElement.previousElementSibling.childNodes[i]);
+                }
+                nextElement.previousElementSibling.remove();
+            }
+
+            return;
+        }
 
 
-    // 현재 커서 위치에 텍스트 대체하기
+        var targetTag = document.createElement( target );
+        targetTag.appendChild(copyObj(selectedEles));
 
-    function setTextCurrentCursor(intoElement, text) {
-        var selRange = document.selection.createRange();
-        selRange.text = text;
+        selectedEles.parentNode.replaceChild(targetTag, selectedEles);
     }
 
     init('editor');
