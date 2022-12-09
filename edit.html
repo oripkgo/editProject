@@ -134,10 +134,7 @@
     }
 
     function mergeChildNodesAfter(target, nodes){
-        let copyNodes = [];
-        nodes.forEach(function(obj){
-            copyNodes.push(obj);
-        })
+        let copyNodes = getNodeList(nodes);
 
         copyNodes.forEach(function(obj,idx){
             target.appendChild(obj)
@@ -192,16 +189,21 @@
 
     function resetStartContainer(obj, offset){
         startObj.container = obj;
-        if( offset ){
-            startObj.offset = offset;
-        }
+        startObj.offset = offset;
     }
 
     function resetEndContainer(obj, offset){
         endObj.container = obj;
-        if( offset ){
-            endObj.offset = offset;
-        }
+        endObj.offset = offset;
+    }
+
+    function getNodeList(nodes){
+        let copyNodes = [];
+        nodes.forEach(function(obj){
+            copyNodes.push(obj);
+        })
+
+        return copyNodes;
     }
 
     function cover(target){
@@ -213,10 +215,16 @@
         }
 
         let startCheck = false;
+        let endCheck = false;
         for(let i=0;i<selectedEles.length;i++){
+            if( endCheck )break;
             let sObj = findReturnObj(selectedEles[i], startObj.container);
             let eObj = findReturnObj(selectedEles[i], endObj.container);
             const targetTag = document.createElement( target );
+
+            if( sObj ) startCheck = true;
+            if( eObj ) endCheck = true;
+
 
             // 부모객체에 target과 동일한 태그가 있을 경우 로직 종료
             setParents(sObj || eObj || selectedEles[i])
@@ -249,30 +257,38 @@
                     resetEndContainer(textNode, textNode.length);
                     sObj.remove();
                 }
-                mergeSameElements(targetTag);
             }else if( sObj ){
                 if( sObj.nodeName == '#text'){
+                    let textNode = getTextNode(sObj.substringData(startObj.offset, sObj.length))
+
                     sObj.before(getTextNode(sObj.substringData(0,startObj.offset)))
-                    targetTag.appendChild(getTextNode(sObj.substringData(startObj.offset, sObj.length)));
+                    targetTag.appendChild(textNode);
+                    resetStartContainer(textNode, 0);
                 }
+
                 replace(targetTag, sObj);
-                mergeSameElements(targetTag);
-                if( sObj ) startCheck = true;
             }else if(eObj){
                 if( eObj.nodeName == '#text'){
+                    let textNode = getTextNode(eObj.substringData(0,endObj.offset))
+
                     eObj.after(getTextNode(eObj.substringData(endObj.offset, eObj.length)));
-                    targetTag.appendChild(getTextNode(eObj.substringData(0,endObj.offset)));
+                    targetTag.appendChild(textNode);
+                    resetEndContainer(textNode, textNode.length);
                 }
 
                 replace(targetTag, eObj);
-                mergeSameElements(targetTag);
-                if( eObj )break;
             }else if( startCheck ){
                 changeLocation(targetTag, selectedEles[i]);
-                mergeSameElements(targetTag);
             }
 
         }
+
+        const nodes = getNodeList(scopeParants[scopeParants.length-1].childNodes);
+
+        debugger;
+        nodes.forEach(function(obj){
+            mergeSameElements(obj);
+        })
 
         addRange(
             startObj.container,
