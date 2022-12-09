@@ -11,13 +11,14 @@
 </head>
 <body>
 <div id="editor">
-    <p>asads<b>fdsgd</b>sfdsfdsfdasfdsfds</p>
+    <p>as<b><i>ad</i>sfd<u>sgd</u></b><i>s</i>fdsf<b>dsfd</b>asfdsfds</p>
     <p><br></p>
 </div>
 
 <script>
     const startObj = {};
     const endObj = {};
+    let childNodes = [];
     let scopeObjects = [];
     let scopeParants = [];
     let scopeParantTagNames = [];
@@ -87,13 +88,12 @@
         endObj.container = window.getSelection().getRangeAt(0).endContainer;
         endObj.offset = window.getSelection().getRangeAt(0).endOffset;
 
-        if( window.getSelection().type == 'Caret' ){
-            // setParents(window.getSelection().getRangeAt(0).commonAncestorContainer);
-            // return getParents()[getParents().length-1];
-            return window.getSelection().getRangeAt(0).commonAncestorContainer;
+        if( window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes.length == 0 ){
+            return [window.getSelection().getRangeAt(0).commonAncestorContainer];
         }
 
-        return window.getSelection().getRangeAt(0).commonAncestorContainer;
+        childNodes = window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
+        return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
     }
 
     function isSame(original, target){
@@ -104,55 +104,182 @@
         return target.cloneNode(deep || true);
     }
 
+    function addRange(startObj, startOffSet, endObj, endOffSet){
+        let range = new Range();
+
+        range.setStart(startObj, startOffSet);
+        range.setEnd(endObj, endOffSet);
+
+        // apply the selection, explained later below
+        document.getSelection().removeAllRanges();
+        document.getSelection().addRange(range);
+    }
+
+    function mergeChildNodesBefore(target, nodes){
+        let copyNodes = [];
+        nodes.forEach(function(obj){
+            copyNodes.push(obj);
+        })
+
+        let refChild;
+        copyNodes.forEach(function(obj,idx){
+            if(idx==0){
+                refChild = obj;
+                target.firstChild.before(obj);
+            }else{
+                refChild.after(obj);
+                refChild = obj;
+            }
+        })
+    }
+
+    function mergeChildNodesAfter(target, nodes){
+        let copyNodes = [];
+        nodes.forEach(function(obj){
+            copyNodes.push(obj);
+        })
+
+        copyNodes.forEach(function(obj,idx){
+            target.appendChild(obj)
+        })
+    }
+
+    function putPrevElementInMyElement(target){
+        const previousElement = target.previousElementSibling;
+        mergeChildNodesBefore(target, previousElement.childNodes);
+        previousElement.remove();
+    }
+
+    function putNextElementInMyElement(target){
+        const nextElement = target.nextElementSibling;
+        mergeChildNodesAfter(target, nextElement.childNodes);
+        nextElement.remove();
+    }
+
+    function mergeSameElements(targetTag){
+        if( targetTag.previousSibling && targetTag.previousSibling.tagName === targetTag.tagName ){
+            // 노드 앞에 동일한 태그가 있을 경우 앞에 있는 노드에 append 처리
+            putPrevElementInMyElement(targetTag);
+        }else if( targetTag.nextSibling && targetTag.nextSibling.tagName === targetTag.tagName ){
+            // 노드 뒤에 동일한 태그가 있을 경우 뒤에 있는 노드에 prepend 처리
+            putNextElementInMyElement(targetTag);
+        }
+    }
+
+    function changeLocation(target,chanObj){
+        const targetTag = typeof(target) === 'string' ? document.createElement( target ) : target;
+        const copySelEle = copyObj(chanObj);
+
+        if(chanObj === startObj.container){
+            startObj.container = copySelEle;
+        }
+
+        if(chanObj === endObj.container){
+            endObj.container = copySelEle;
+        }
+
+        targetTag.appendChild(copySelEle);
+        replace(targetTag, chanObj);
+    }
+
+    function getTextNode(text){
+        return document.createTextNode(text);
+    }
+
+    function replace(target, replaceObj){
+        replaceObj.parentNode.replaceChild(target, replaceObj);
+    }
+
+    function resetStartContainer(obj, offset){
+        startObj.container = obj;
+        if( offset ){
+            startObj.offset = offset;
+        }
+    }
+
+    function resetEndContainer(obj, offset){
+        endObj.container = obj;
+        if( offset ){
+            endObj.offset = offset;
+        }
+    }
+
     function cover(target){
-        const selectedEles = getRangeNodes();
         target = target.toUpperCase();
+        const selectedEles = getRangeNodes();
 
-        if( !selectedEles ){
+        if( !selectedEles || selectedEles.length == 0 ){
             return;
         }
 
-        // 부모객체에 target과 동일한 태그가 있을 경우 로직 종료
-        setParents(selectedEles)
-        if( getParentTagNames().indexOf(target) > -1 ){
-            return;
-        }
+        let startCheck = false;
+        for(let i=0;i<selectedEles.length;i++){
+            let sObj = findReturnObj(selectedEles[i], startObj.container);
+            let eObj = findReturnObj(selectedEles[i], endObj.container);
+            const targetTag = document.createElement( target );
 
-        // 노드 앞에 동일한 태그가 있을 경우 앞에 있는 노드에 append 처리
-        if( selectedEles.previousElementSibling && selectedEles.previousElementSibling.tagName == target ){
-            const previousElement = selectedEles.previousElementSibling;
-            selectedEles.previousElementSibling.appendChild(selectedEles);
-
-            if( previousElement.nextElementSibling && previousElement.nextElementSibling.tagName == target ){
-                for( let i=0;previousElement.nextElementSibling.childNodes && i<previousElement.nextElementSibling.childNodes.length;i++ ){
-                    previousElement.appendChild(previousElement.nextElementSibling.childNodes[i]);
-                }
-                previousElement.nextElementSibling.remove();
+            // 부모객체에 target과 동일한 태그가 있을 경우 로직 종료
+            setParents(sObj || eObj || selectedEles[i])
+            if( getParentTagNames().indexOf(target) > -1 ){
+                continue;
             }
 
-            return;
-        }
+            if( sObj && eObj ){
+                if( sObj.nodeName == '#text'){
+                    let appendList = [];
+                    let textNode = getTextNode(sObj.substringData(startObj.offset, endObj.offset-startObj.offset));
+                    targetTag.appendChild(textNode);
 
-        // 노드 뒤에 동일한 태그가 있을 경우 뒤에 있는 노드에 prepend 처리
-        if( selectedEles.nextElementSibling && selectedEles.nextElementSibling.tagName == target ){
-            const nextElement = selectedEles.nextElementSibling;
-            selectedEles.nextElementSibling.firstChild.before(selectedEles);
+                    appendList.push(getTextNode(sObj.substringData(0,startObj.offset)));
+                    appendList.push(targetTag);
+                    appendList.push(getTextNode(eObj.substringData(endObj.offset,eObj.length)));
 
-            if( nextElement.previousElementSibling && nextElement.previousElementSibling.tagName == target ){
-                for( let i=0;nextElement.previousElementSibling.childNodes && i<nextElement.previousElementSibling.childNodes.length;i++ ){
-                    nextElement.firstChild.before(nextElement.previousElementSibling.childNodes[i]);
+                    let refChild;
+                    appendList.forEach(function(obj,idx){
+                        if(idx==0){
+                            refChild = obj;
+                            sObj.after(obj);
+                        }else{
+                            refChild.after(obj);
+                            refChild = obj;
+                        }
+                    })
+
+                    resetStartContainer(textNode, 0);
+                    resetEndContainer(textNode, textNode.length);
+                    sObj.remove();
                 }
-                nextElement.previousElementSibling.remove();
+                mergeSameElements(targetTag);
+            }else if( sObj ){
+                if( sObj.nodeName == '#text'){
+                    sObj.before(getTextNode(sObj.substringData(0,startObj.offset)))
+                    targetTag.appendChild(getTextNode(sObj.substringData(startObj.offset, sObj.length)));
+                }
+                replace(targetTag, sObj);
+                mergeSameElements(targetTag);
+                if( sObj ) startCheck = true;
+            }else if(eObj){
+                if( eObj.nodeName == '#text'){
+                    eObj.after(getTextNode(eObj.substringData(endObj.offset, eObj.length)));
+                    targetTag.appendChild(getTextNode(eObj.substringData(0,endObj.offset)));
+                }
+
+                replace(targetTag, eObj);
+                mergeSameElements(targetTag);
+                if( eObj )break;
+            }else if( startCheck ){
+                changeLocation(targetTag, selectedEles[i]);
+                mergeSameElements(targetTag);
             }
 
-            return;
         }
 
-
-        var targetTag = document.createElement( target );
-        targetTag.appendChild(copyObj(selectedEles));
-
-        selectedEles.parentNode.replaceChild(targetTag, selectedEles);
+        addRange(
+            startObj.container,
+            startObj.offset,
+            endObj.container,
+            endObj.offset
+        );
     }
 
     init('editor');
