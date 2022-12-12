@@ -5,13 +5,13 @@
     <title>Title</title>
 
     <style>
-        #editor{background-color: bisque;height: 400px;margin: 50px;}
+        #editor{background-color: bisque;height: 400px;margin: 50px; padding:10px;}
+        #editor p{line-height: 1.7;}
     </style>
 
 </head>
 <body>
 <div id="editor">
-    <p>as<b><i>ad</i>sfd<u>sgd</u></b><i>s</i>fdsf<b>dsfd</b>asfdsfds</p>
     <p><br></p>
 </div>
 
@@ -23,19 +23,30 @@
     let scopeParants = [];
     let scopeParantTagNames = [];
     let editorTarget;
+    let loopStartCheck = false;
+    let loopEndCheck = false;
 
     function init(target){
         editorTarget = document.getElementById( target );
         document.getElementById( target ).setAttribute( 'contenteditable', 'true' )
+        document.getElementById( target ).setAttribute( 'onclick', 'focusEditor(this);' )
     }
 
-    function findReturnObj(target, findObj){
+    function focusEditor(obj){
+        //addRange
+
+        console.log(window.getSelection().focusNode);
+       // childNodes = getNodeList(window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes);
+
+    }
+
+    function findChildReturnObj(target, findObj){
         if( isSame(target, findObj) ){
             return target;
         }else{
             for(let i=0;target && i<target.childNodes.length;i++){
                 const child = target.childNodes[i];
-                let result = findReturnObj(child, findObj);
+                let result = findChildReturnObj(child, findObj);
 
                 if( result ){
                     return result;
@@ -91,9 +102,13 @@
         if( window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes.length == 0 ){
             return [window.getSelection().getRangeAt(0).commonAncestorContainer];
         }
+        window.getSelection().focusNode
 
-        childNodes = window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
-        return window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes;
+        //addRange
+       // if()
+
+        childNodes = getNodeList(window.getSelection().getRangeAt(0).commonAncestorContainer.childNodes);
+        return childNodes;
     }
 
     function isSame(original, target){
@@ -206,48 +221,56 @@
         return copyNodes;
     }
 
-    function cover(target){
+    function cover(target, rangeNodes) {
         target = target.toUpperCase();
-        const selectedEles = getRangeNodes();
+        const selectedEles = rangeNodes?rangeNodes:getRangeNodes();
 
-        if( !selectedEles || selectedEles.length == 0 ){
+        if (!selectedEles || selectedEles.length == 0) {
             return;
         }
 
-        let startCheck = false;
-        let endCheck = false;
-        for(let i=0;i<selectedEles.length;i++){
-            if( endCheck )break;
-            let sObj = findReturnObj(selectedEles[i], startObj.container);
-            let eObj = findReturnObj(selectedEles[i], endObj.container);
-            const targetTag = document.createElement( target );
+        if( !rangeNodes ){
+            loopStartCheck = false;
+            loopEndCheck = false;
+        }
 
-            if( sObj ) startCheck = true;
-            if( eObj ) endCheck = true;
+        for (let i = 0; i < selectedEles.length; i++) {
 
-
-            // 부모객체에 target과 동일한 태그가 있을 경우 로직 종료
-            setParents(sObj || eObj || selectedEles[i])
-            if( getParentTagNames().indexOf(target) > -1 ){
+            if( selectedEles[i].tagName == 'P' ){
+                cover(target, selectedEles[i].childNodes);
                 continue;
             }
 
-            if( sObj && eObj ){
-                if( sObj.nodeName == '#text'){
+            if (loopEndCheck) break;
+            let sObj = findChildReturnObj(selectedEles[i], startObj.container);
+            let eObj = findChildReturnObj(selectedEles[i], endObj.container);
+            const targetTag = document.createElement(target);
+
+            if (sObj) loopStartCheck = true;
+            if (eObj) loopEndCheck = true;
+
+            // 부모객체에 target과 동일한 태그가 있을 경우 로직 종료
+            setParents(sObj || eObj || selectedEles[i])
+            if (getParentTagNames().indexOf(target) > -1) {
+                continue;
+            }
+
+            if (sObj && eObj) {
+                if (sObj.nodeName == '#text') {
                     let appendList = [];
-                    let textNode = getTextNode(sObj.substringData(startObj.offset, endObj.offset-startObj.offset));
+                    let textNode = getTextNode(sObj.substringData(startObj.offset, endObj.offset - startObj.offset));
                     targetTag.appendChild(textNode);
 
-                    appendList.push(getTextNode(sObj.substringData(0,startObj.offset)));
+                    appendList.push(getTextNode(sObj.substringData(0, startObj.offset)));
                     appendList.push(targetTag);
-                    appendList.push(getTextNode(eObj.substringData(endObj.offset,eObj.length)));
+                    appendList.push(getTextNode(eObj.substringData(endObj.offset, eObj.length)));
 
                     let refChild;
-                    appendList.forEach(function(obj,idx){
-                        if(idx==0){
+                    appendList.forEach(function (obj, idx) {
+                        if (idx == 0) {
                             refChild = obj;
                             sObj.after(obj);
-                        }else{
+                        } else {
                             refChild.after(obj);
                             refChild = obj;
                         }
@@ -257,19 +280,19 @@
                     resetEndContainer(textNode, textNode.length);
                     sObj.remove();
                 }
-            }else if( sObj ){
-                if( sObj.nodeName == '#text'){
+            } else if (sObj) {
+                if (sObj.nodeName == '#text') {
                     let textNode = getTextNode(sObj.substringData(startObj.offset, sObj.length))
 
-                    sObj.before(getTextNode(sObj.substringData(0,startObj.offset)))
+                    sObj.before(getTextNode(sObj.substringData(0, startObj.offset)))
                     targetTag.appendChild(textNode);
                     resetStartContainer(textNode, 0);
                 }
 
                 replace(targetTag, sObj);
-            }else if(eObj){
-                if( eObj.nodeName == '#text'){
-                    let textNode = getTextNode(eObj.substringData(0,endObj.offset))
+            } else if (eObj) {
+                if (eObj.nodeName == '#text') {
+                    let textNode = getTextNode(eObj.substringData(0, endObj.offset))
 
                     eObj.after(getTextNode(eObj.substringData(endObj.offset, eObj.length)));
                     targetTag.appendChild(textNode);
@@ -277,18 +300,17 @@
                 }
 
                 replace(targetTag, eObj);
-            }else if( startCheck ){
+            } else if (loopStartCheck) {
                 changeLocation(targetTag, selectedEles[i]);
             }
-
         }
 
-        const nodes = getNodeList(scopeParants[scopeParants.length-1].childNodes);
-
-        debugger;
-        nodes.forEach(function(obj){
-            mergeSameElements(obj);
-        })
+        if( scopeParants.length > 0 ){
+            const nodes = getNodeList(scopeParants[scopeParants.length - 1].childNodes);
+            nodes.forEach(function (obj) {
+                mergeSameElements(obj);
+            })
+        }
 
         addRange(
             startObj.container,
